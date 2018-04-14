@@ -51,18 +51,37 @@
   /* Includes ------------------------------------------------------------------*/
 
 /* USER CODE BEGIN Includes */
+#define WHEEL_CIR 56.5
+#define IPS_TO_MPH 0.0568182
+#define FLOW_CONSTANT .28
 
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
 
+#define StrainGauge6_Pin GPIO_PIN_0
+#define StrainGauge6_GPIO_Port GPIOC
+#define StrainGauge5_Pin GPIO_PIN_1
+#define StrainGauge5_GPIO_Port GPIOC
 #define Wheel_speed_Pin GPIO_PIN_1
 #define Wheel_speed_GPIO_Port GPIOA
-#define Coolant_temp_Pin GPIO_PIN_4
-#define Coolant_temp_GPIO_Port GPIOA
+#define Coolant_temp_1_Pin GPIO_PIN_2
+#define Coolant_temp_1_GPIO_Port GPIOA
+#define Coolant_temp_2_Pin GPIO_PIN_3
+#define Coolant_temp_2_GPIO_Port GPIOA
+#define Coolant_temp_3_Pin GPIO_PIN_4
+#define Coolant_temp_3_GPIO_Port GPIOA
 #define Coolant_flow_Pin GPIO_PIN_5
 #define Coolant_flow_GPIO_Port GPIOA
 #define Coolant_flow_EXTI_IRQn EXTI9_5_IRQn
+#define StrainGauge1_Pin GPIO_PIN_6
+#define StrainGauge1_GPIO_Port GPIOA
+#define StrainGauge2_Pin GPIO_PIN_7
+#define StrainGauge2_GPIO_Port GPIOA
+#define StrainGauge3_Pin GPIO_PIN_0
+#define StrainGauge3_GPIO_Port GPIOB
+#define StrainGauge4_Pin GPIO_PIN_1
+#define StrainGauge4_GPIO_Port GPIOB
 #define Brake_temp_SCL_Pin GPIO_PIN_10
 #define Brake_temp_SCL_GPIO_Port GPIOB
 #define Brake_temp_SDA_Pin GPIO_PIN_11

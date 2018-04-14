@@ -100,25 +100,26 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     /**ADC1 GPIO Configuration    
     PC0     ------> ADC1_IN10
     PC1     ------> ADC1_IN11
-    PC2     ------> ADC1_IN12
-    PC3     ------> ADC1_IN13
+    PA2     ------> ADC1_IN2
+    PA3     ------> ADC1_IN3
     PA4     ------> ADC1_IN4
     PA6     ------> ADC1_IN6
     PA7     ------> ADC1_IN7
     PB0     ------> ADC1_IN8
     PB1     ------> ADC1_IN9 
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+    GPIO_InitStruct.Pin = StrainGauge6_Pin|StrainGauge5_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = Coolant_temp_Pin|GPIO_PIN_6|GPIO_PIN_7;
+    GPIO_InitStruct.Pin = Coolant_temp_1_Pin|Coolant_temp_2_Pin|Coolant_temp_3_Pin|StrainGauge1_Pin 
+                          |StrainGauge2_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+    GPIO_InitStruct.Pin = StrainGauge3_Pin|StrainGauge4_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -144,19 +145,20 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     /**ADC1 GPIO Configuration    
     PC0     ------> ADC1_IN10
     PC1     ------> ADC1_IN11
-    PC2     ------> ADC1_IN12
-    PC3     ------> ADC1_IN13
+    PA2     ------> ADC1_IN2
+    PA3     ------> ADC1_IN3
     PA4     ------> ADC1_IN4
     PA6     ------> ADC1_IN6
     PA7     ------> ADC1_IN7
     PB0     ------> ADC1_IN8
     PB1     ------> ADC1_IN9 
     */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
+    HAL_GPIO_DeInit(GPIOC, StrainGauge6_Pin|StrainGauge5_Pin);
 
-    HAL_GPIO_DeInit(GPIOA, Coolant_temp_Pin|GPIO_PIN_6|GPIO_PIN_7);
+    HAL_GPIO_DeInit(GPIOA, Coolant_temp_1_Pin|Coolant_temp_2_Pin|Coolant_temp_3_Pin|StrainGauge1_Pin 
+                          |StrainGauge2_Pin);
 
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_0|GPIO_PIN_1);
+    HAL_GPIO_DeInit(GPIOB, StrainGauge3_Pin|StrainGauge4_Pin);
 
   /* USER CODE BEGIN ADC1_MspDeInit 1 */
 
