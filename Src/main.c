@@ -51,7 +51,8 @@
 #include "cmsis_os.h"
 
 /* USER CODE BEGIN Includes */
-
+// Required for memcpy?
+//#include <string.h>
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -60,10 +61,6 @@
 ADC_HandleTypeDef hadc1;
 
 CAN_HandleTypeDef hcan1;
-
-xQueueHandle TXQueue;
-
-xSemaphoreHandle gatekeeper=0;
 
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
@@ -74,17 +71,40 @@ osThreadId defaultTaskHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+// can stuff
+xQueueHandle TXQueue;
+xSemaphoreHandle gatekeeper=0;
+
+// adc configurations
+ADC_ChannelConfTypeDef chConfig;
+
 // sensor delay time (in milliseconds)
 int flowDelayTime=1000;
 int speedDelayTime=1000;
+int temp_delay_time = 1000;
 
 // CAN id
-uint32_t wheelSpeed_ID=0x200;
-uint32_t coolantFlow_ID= 0x215;
+// CHANGE TO WHICH MODULE YOU'RE USING
+uint32_t wheelSpeed_ID   = 0x601;
+uint32_t strainGauge1_ID = 0x602;
+uint32_t strainGauge2_ID = 0x603;
+uint32_t strainGauge3_ID = 0x604;
+uint32_t strainGauge4_ID = 0x605;
+uint32_t strainGauge5_ID = 0x606;
+uint32_t strainGauge6_ID = 0x607;
+uint32_t coolantFlow_ID  = 0x608;
+uint32_t coolantTemp1_ID = 0x609;
+uint32_t coolantTemp2_ID = 0x610;
+uint32_t coolantTemp3_ID = 0x611;
 
-//coolant flow variables
+// coolant flow variables
 uint16_t flow_counter;
 double flow;
+
+// coolant temperature sensor variables
+uint32_t temperature_value1;
+uint32_t temperature_value2;
+uint32_t temperature_value3;
 
 //Wheel Speed variables
 volatile double HITCOUNTER;
@@ -106,68 +126,113 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void send_can( uint32_t StdId, double message)
-  {
-	  //sends CAN message
-	  CanTxMsgTypeDef tx;
-      memcpy(tx.Data, &message, sizeof(double));
-	  tx.DLC = 8;
-	  tx.RTR = CAN_RTR_DATA;			//CAN Data frame
-	  tx.IDE = CAN_ID_STD;			//Standard Identifier
-	  tx.StdId = StdId;               //Wheel Speed ID
-	  xQueueSendToBack(TXQueue, &tx, 10);
-  }
-  void flow_rate(void *p)
-  {
-     flow = 0.0;
-	 flow_counter = 0;
+void send_can(uint32_t StdId, double message)
+{
+  //sends CAN message
+  CanTxMsgTypeDef tx;
+  memcpy(tx.Data, &message, sizeof(double));
+  tx.DLC = 8;
+  tx.RTR = CAN_RTR_DATA;			//CAN Data frame
+  tx.IDE = CAN_ID_STD;		    	//Standard Identifier
+  tx.StdId = StdId;                 //Wheel Speed ID
+  xQueueSendToBack(TXQueue, &tx, 10);
+}
+void flow_rate(void *p)
+{
+	flow = 0.0;
+	flow_counter = 0;
 
-	 for (;;)
-	 {
-	   vTaskDelay(flowDelayTime);
-	   flow = (double) flow_counter / flowDelayTime * 1000 * FLOW_CONSTANT;
-	   flow_counter = 0;
-	 }
+	for (;;)
+	{
+		vTaskDelay(flowDelayTime);
+		flow = (double) flow_counter / flowDelayTime * 1000 * FLOW_CONSTANT;
+		flow_counter = 0;
+	}
 
-	 send_can(coolantFlow_ID,flow);
-  }
+	// Will it ever reach here? for (;;) is an infinite loop
 
-  void wheel_speed(void *p)
-  {
-	  //every one second
-	  	for(;;)
-	  	{
-          vTaskDelay(speedDelayTime);
-	  	  speed = (double)(WHEEL_CIR) *(double)(IPS_TO_MPH)*HITCOUNTER;// calculates speed
-          HITCOUNTER=0; // reset
-	  	}
+	send_can(coolantFlow_ID,flow);
+}
 
-	  	send_can(wheelSpeed_ID,speed);
+void wheel_speed(void *p)
+{
+	// every one second
+	for(;;)
+	{
+		vTaskDelay(speedDelayTime);
+		speed = (double)(WHEEL_CIR) *(double)(IPS_TO_MPH)*HITCOUNTER; // calculates speed
+		HITCOUNTER = 0; // reset
+	}
 
-  }
+	// Will it ever reach here? for (;;) is an infinite loop
 
-  void TXCANTask(void *pvParameters)
-  {
-  	for (;;)
-  	{
-  		//check if the queue has a can frame to send
+	send_can(wheelSpeed_ID,speed);
 
-  		CanTxMsgTypeDef tx;
-  		if (xQueuePeek(TXQueue, &tx, portMAX_DELAY) == pdTRUE)
-  		{
-  			//check if CAN mutex is available
-  			if (xSemaphoreTake(gatekeeper, 100) == pdTRUE)
-  			{
-  				//actually take item out of queue
-  				xQueueReceive(TXQueue, &tx, portMAX_DELAY);
+}
 
-  				hcan1.pTxMsg = &tx;  //stage message in CAN structure
-  				HAL_CAN_Transmit_IT(&hcan1);  //transmit staged message
-  				xSemaphoreGive(gatekeeper);  //release CAN mutex
-  			}
-  		}
-  	}
-  }
+void temp_val1(void *p) {
+	HAL_ADC_Start(&hadc1);
+
+	for(;;) {
+		if (HAL_ADC_PollForConversion(&hadc1, 10000) == HAL_OK) {
+			temperature_value1 = HAL_ADC_GetValue(&hadc1);
+		}
+		vTaskDelay(temp_delay_time);
+	}
+
+	send_can(coolantTemp1_ID, temperature_value1);
+}
+
+void temp_val2(void *p) {
+	HAL_ADC_Start(&hadc1);
+
+	for(;;) {
+		if (HAL_ADC_PollForConversion(&hadc1, 10000) == HAL_OK) {
+			temperature_value2 = HAL_ADC_GetValue(&hadc1);
+		}
+		vTaskDelay(temp_delay_time);
+	}
+
+	send_can(coolantTemp2_ID, temperature_value1);
+}
+
+void temp_val3(void *p) {
+	chConfig.Channel = ADC_CHANNEL_1;
+	HAL_ADC_ConfigChannel(&hadc, &chConfig);
+	HAL_ADC_Start(&hadc1);
+
+	for(;;) {
+		if (HAL_ADC_PollForConversion(&hadc1, 10000) == HAL_OK) {
+			temperature_value3 = HAL_ADC_GetValue(&hadc1);
+		}
+		vTaskDelay(temp_delay_time);
+	}
+
+	send_can(coolantTemp3_ID, temperature_value1);
+}
+
+void TXCANTask(void *pvParameters)
+{
+	for (;;)
+	{
+		// check if the queue has a can frame to send
+
+		CanTxMsgTypeDef tx;
+		if (xQueuePeek(TXQueue, &tx, portMAX_DELAY) == pdTRUE)
+		{
+			// check if CAN mutex is available
+			if (xSemaphoreTake(gatekeeper, 100) == pdTRUE)
+			{
+				// actually take item out of queue
+				xQueueReceive(TXQueue, &tx, portMAX_DELAY);
+
+				hcan1.pTxMsg = &tx;  // stage message in CAN structure
+				HAL_CAN_Transmit_IT(&hcan1);  // transmit staged message
+				xSemaphoreGive(gatekeeper);  // release CAN mutex
+			}
+		}
+	}
+}
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -227,9 +292,9 @@ int main(void)
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
-     xTaskCreate(wheel_speed,(signed char*)"wheel_speed",1024,NULL,1,NULL);       // initialization the task which calculates the Wheel_speed
-     xTaskCreate(flow_rate,(signed char*)"flow_rate",1024,NULL,1,NULL);           // intializates the coolant flow
-     xTaskCreate(TXCANTask,(signed char*)"TXCANTask",1024,NULL,1,NULL);           //  initializes CAN
+     xTaskCreate(wheel_speed, "Wheel Speed", 1024, NULL, 1, NULL);       // initialization the task which calculates the Wheel_speed
+     xTaskCreate(flow_rate, "Flow Rate", 1024, NULL, 1, NULL);           // intializates the coolant flow
+     xTaskCreate(TXCANTask, "TXCANTask", 1024, NULL, 1, NULL);           //  initializes CAN
      TXQueue=xQueueCreate(3,sizeof(CanTxMsgTypeDef));
   /* USER CODE END RTOS_THREADS */
 
