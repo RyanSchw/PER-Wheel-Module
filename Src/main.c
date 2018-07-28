@@ -49,6 +49,11 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include "cmsis_os.h"
+#include "adc.h"
+#include "can.h"
+#include "i2c.h"
+#include "tim.h"
+#include "gpio.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -56,118 +61,18 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-
-ADC_HandleTypeDef hadc1;
-
-CAN_HandleTypeDef hcan1;
-
-xQueueHandle TXQueue;
-
-xSemaphoreHandle gatekeeper=0;
-
-I2C_HandleTypeDef hi2c1;
-I2C_HandleTypeDef hi2c2;
-
-TIM_HandleTypeDef htim1;
-
-osThreadId defaultTaskHandle;
-
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-// sensor delay time (in milliseconds)
-int flowDelayTime=1000;
-int speedDelayTime=1000;
 
-// CAN id
-uint32_t wheelSpeed_ID=0x200;
-uint32_t coolantFlow_ID= 0x215;
-
-//coolant flow variables
-uint16_t flow_counter;
-double flow;
-
-//Wheel Speed variables
-volatile double HITCOUNTER;
-double speed;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_TIM1_Init(void);
-static void MX_ADC1_Init(void);
-static void MX_CAN1_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_I2C2_Init(void);
-void StartDefaultTask(void const * argument);
-
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-                                
+void MX_FREERTOS_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void send_can( uint32_t StdId, double message)
-  {
-	  //sends CAN message
-	  CanTxMsgTypeDef tx;
-      memcpy(tx.Data, &message, sizeof(double));
-	  tx.DLC = 8;
-	  tx.RTR = CAN_RTR_DATA;			//CAN Data frame
-	  tx.IDE = CAN_ID_STD;			//Standard Identifier
-	  tx.StdId = StdId;               //Wheel Speed ID
-	  xQueueSendToBack(TXQueue, &tx, 10);
-  }
-  void flow_rate(void *p)
-  {
-     flow = 0.0;
-	 flow_counter = 0;
 
-	 for (;;)
-	 {
-	   vTaskDelay(flowDelayTime);
-	   flow = (double) flow_counter / flowDelayTime * 1000 * FLOW_CONSTANT;
-	   flow_counter = 0;
-	 }
-
-	 send_can(coolantFlow_ID,flow);
-  }
-
-  void wheel_speed(void *p)
-  {
-	  //every one second
-	  	for(;;)
-	  	{
-          vTaskDelay(speedDelayTime);
-	  	  speed = (double)(WHEEL_CIR) *(double)(IPS_TO_MPH)*HITCOUNTER;// calculates speed
-          HITCOUNTER=0; // reset
-	  	}
-
-	  	send_can(wheelSpeed_ID,speed);
-
-  }
-
-  void TXCANTask(void *pvParameters)
-  {
-  	for (;;)
-  	{
-  		//check if the queue has a can frame to send
-
-  		CanTxMsgTypeDef tx;
-  		if (xQueuePeek(TXQueue, &tx, portMAX_DELAY) == pdTRUE)
-  		{
-  			//check if CAN mutex is available
-  			if (xSemaphoreTake(gatekeeper, 100) == pdTRUE)
-  			{
-  				//actually take item out of queue
-  				xQueueReceive(TXQueue, &tx, portMAX_DELAY);
-
-  				hcan1.pTxMsg = &tx;  //stage message in CAN structure
-  				HAL_CAN_Transmit_IT(&hcan1);  //transmit staged message
-  				xSemaphoreGive(gatekeeper);  //release CAN mutex
-  			}
-  		}
-  	}
-  }
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -209,34 +114,8 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
-
-  /* USER CODE END RTOS_MUTEX */
-
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
-  gatekeeper=xSemaphoreCreateMutex();
-  /* USER CODE END RTOS_SEMAPHORES */
-
-  /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
-
-  /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  /* USER CODE BEGIN RTOS_THREADS */
-     xTaskCreate(wheel_speed,(signed char*)"wheel_speed",1024,NULL,1,NULL);       // initialization the task which calculates the Wheel_speed
-     xTaskCreate(flow_rate,(signed char*)"flow_rate",1024,NULL,1,NULL);           // intializates the coolant flow
-     xTaskCreate(TXCANTask,(signed char*)"TXCANTask",1024,NULL,1,NULL);           //  initializes CAN
-     TXQueue=xQueueCreate(3,sizeof(CanTxMsgTypeDef));
-  /* USER CODE END RTOS_THREADS */
-
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
- 
+  /* Call init function for freertos objects (in freertos.c) */
+  MX_FREERTOS_Init();
 
   /* Start scheduler */
   osKernelStart();
@@ -307,219 +186,9 @@ void SystemClock_Config(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 15, 0);
 }
 
-/* ADC1 init function */
-static void MX_ADC1_Init(void)
-{
-
-  ADC_ChannelConfTypeDef sConfig;
-
-    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
-    */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-    /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
-    */
-  sConfig.Channel = ADC_CHANNEL_4;
-  sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
-/* CAN1 init function */
-static void MX_CAN1_Init(void)
-{
-
-  hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 16;
-  hcan1.Init.Mode = CAN_MODE_NORMAL;
-  hcan1.Init.SJW = CAN_SJW_1TQ;
-  hcan1.Init.BS1 = CAN_BS1_1TQ;
-  hcan1.Init.BS2 = CAN_BS2_1TQ;
-  hcan1.Init.TTCM = DISABLE;
-  hcan1.Init.ABOM = DISABLE;
-  hcan1.Init.AWUM = DISABLE;
-  hcan1.Init.NART = DISABLE;
-  hcan1.Init.RFLM = DISABLE;
-  hcan1.Init.TXFP = DISABLE;
-  if (HAL_CAN_Init(&hcan1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
-/* I2C1 init function */
-static void MX_I2C1_Init(void)
-{
-
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
-/* I2C2 init function */
-static void MX_I2C2_Init(void)
-{
-
-  hi2c2.Instance = I2C2;
-  hi2c2.Init.ClockSpeed = 100000;
-  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c2.Init.OwnAddress1 = 0;
-  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c2.Init.OwnAddress2 = 0;
-  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
-/* TIM1 init function */
-static void MX_TIM1_Init(void)
-{
-
-  TIM_ClockConfigTypeDef sClockSourceConfig;
-  TIM_MasterConfigTypeDef sMasterConfig;
-  TIM_OC_InitTypeDef sConfigOC;
-  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
-
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 0;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sConfigOC.OCMode = TIM_OCMODE_TIMING;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  HAL_TIM_MspPostInit(&htim1);
-
-}
-
-/** Configure pins as 
-        * Analog 
-        * Input 
-        * Output
-        * EVENT_OUT
-        * EXTI
-*/
-static void MX_GPIO_Init(void)
-{
-
-  GPIO_InitTypeDef GPIO_InitStruct;
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-
-  /*Configure GPIO pins : Wheel_speed_Pin Coolant_flow_Pin */
-  GPIO_InitStruct.Pin = Wheel_speed_Pin|Coolant_flow_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-
-}
-
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
-
-/* StartDefaultTask function */
-void StartDefaultTask(void const * argument)
-{
-
-  /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END 5 */ 
-}
 
 /**
   * @brief  Period elapsed callback in non blocking mode

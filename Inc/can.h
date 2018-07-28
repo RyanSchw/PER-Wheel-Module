@@ -1,7 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : main.h
-  * Description        : This file contains the common defines of the application
+  * File Name          : CAN.h
+  * Description        : This file provides code for the configuration
+  *                      of the CAN instances.
   ******************************************************************************
   * This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and
@@ -46,71 +47,45 @@
   ******************************************************************************
   */
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __MAIN_H
-#define __MAIN_H
-  /* Includes ------------------------------------------------------------------*/
+#ifndef __can_H
+#define __can_H
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f4xx_hal.h"
+#include "main.h"
 
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
 
-/* Private define ------------------------------------------------------------*/
-
-#define StrainGauge6_Pin GPIO_PIN_0
-#define StrainGauge6_GPIO_Port GPIOC
-#define StrainGauge5_Pin GPIO_PIN_1
-#define StrainGauge5_GPIO_Port GPIOC
-#define Wheel_speed_Pin GPIO_PIN_1
-#define Wheel_speed_GPIO_Port GPIOA
-#define Coolant_temp_1_Pin GPIO_PIN_2
-#define Coolant_temp_1_GPIO_Port GPIOA
-#define Coolant_temp_2_Pin GPIO_PIN_3
-#define Coolant_temp_2_GPIO_Port GPIOA
-#define Coolant_temp_3_Pin GPIO_PIN_4
-#define Coolant_temp_3_GPIO_Port GPIOA
-#define Coolant_flow_Pin GPIO_PIN_5
-#define Coolant_flow_GPIO_Port GPIOA
-#define Coolant_flow_EXTI_IRQn EXTI9_5_IRQn
-#define StrainGauge1_Pin GPIO_PIN_6
-#define StrainGauge1_GPIO_Port GPIOA
-#define StrainGauge2_Pin GPIO_PIN_7
-#define StrainGauge2_GPIO_Port GPIOA
-#define StrainGauge3_Pin GPIO_PIN_0
-#define StrainGauge3_GPIO_Port GPIOB
-#define StrainGauge4_Pin GPIO_PIN_1
-#define StrainGauge4_GPIO_Port GPIOB
-#define Brake_temp_SCL_Pin GPIO_PIN_10
-#define Brake_temp_SCL_GPIO_Port GPIOB
-#define Brake_temp_SDA_Pin GPIO_PIN_11
-#define Brake_temp_SDA_GPIO_Port GPIOB
-#define SWDIO_Pin GPIO_PIN_13
-#define SWDIO_GPIO_Port GPIOA
-#define SWCLK_Pin GPIO_PIN_14
-#define SWCLK_GPIO_Port GPIOA
-#define CAN_RX_Pin GPIO_PIN_0
-#define CAN_RX_GPIO_Port GPIOD
-#define CAN_TX_Pin GPIO_PIN_1
-#define CAN_TX_GPIO_Port GPIOD
-#define Wheel_temp_SCL_Pin GPIO_PIN_6
-#define Wheel_temp_SCL_GPIO_Port GPIOB
-#define Wheel_temp_SDA_Pin GPIO_PIN_7
-#define Wheel_temp_SDA_GPIO_Port GPIOB
+extern CAN_HandleTypeDef hcan1;
 
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
 
-void _Error_Handler(char *, int);
+extern void _Error_Handler(char *, int);
 
-#define Error_Handler() _Error_Handler(__FILE__, __LINE__)
+void MX_CAN1_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
+
+#ifdef __cplusplus
+}
+#endif
+#endif /*__ can_H */
 
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}
-*/ 
+  */
 
-#endif /* __MAIN_H */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

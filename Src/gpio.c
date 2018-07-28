@@ -1,7 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : main.h
-  * Description        : This file contains the common defines of the application
+  * File Name          : gpio.c
+  * Description        : This file provides code for the configuration
+  *                      of all used GPIO pins.
   ******************************************************************************
   * This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and
@@ -45,72 +46,61 @@
   *
   ******************************************************************************
   */
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __MAIN_H
-#define __MAIN_H
-  /* Includes ------------------------------------------------------------------*/
 
-/* USER CODE BEGIN Includes */
+/* Includes ------------------------------------------------------------------*/
+#include "gpio.h"
+/* USER CODE BEGIN 0 */
 
-/* USER CODE END Includes */
+/* USER CODE END 0 */
 
-/* Private define ------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/* Configure GPIO                                                             */
+/*----------------------------------------------------------------------------*/
+/* USER CODE BEGIN 1 */
 
-#define StrainGauge6_Pin GPIO_PIN_0
-#define StrainGauge6_GPIO_Port GPIOC
-#define StrainGauge5_Pin GPIO_PIN_1
-#define StrainGauge5_GPIO_Port GPIOC
-#define Wheel_speed_Pin GPIO_PIN_1
-#define Wheel_speed_GPIO_Port GPIOA
-#define Coolant_temp_1_Pin GPIO_PIN_2
-#define Coolant_temp_1_GPIO_Port GPIOA
-#define Coolant_temp_2_Pin GPIO_PIN_3
-#define Coolant_temp_2_GPIO_Port GPIOA
-#define Coolant_temp_3_Pin GPIO_PIN_4
-#define Coolant_temp_3_GPIO_Port GPIOA
-#define Coolant_flow_Pin GPIO_PIN_5
-#define Coolant_flow_GPIO_Port GPIOA
-#define Coolant_flow_EXTI_IRQn EXTI9_5_IRQn
-#define StrainGauge1_Pin GPIO_PIN_6
-#define StrainGauge1_GPIO_Port GPIOA
-#define StrainGauge2_Pin GPIO_PIN_7
-#define StrainGauge2_GPIO_Port GPIOA
-#define StrainGauge3_Pin GPIO_PIN_0
-#define StrainGauge3_GPIO_Port GPIOB
-#define StrainGauge4_Pin GPIO_PIN_1
-#define StrainGauge4_GPIO_Port GPIOB
-#define Brake_temp_SCL_Pin GPIO_PIN_10
-#define Brake_temp_SCL_GPIO_Port GPIOB
-#define Brake_temp_SDA_Pin GPIO_PIN_11
-#define Brake_temp_SDA_GPIO_Port GPIOB
-#define SWDIO_Pin GPIO_PIN_13
-#define SWDIO_GPIO_Port GPIOA
-#define SWCLK_Pin GPIO_PIN_14
-#define SWCLK_GPIO_Port GPIOA
-#define CAN_RX_Pin GPIO_PIN_0
-#define CAN_RX_GPIO_Port GPIOD
-#define CAN_TX_Pin GPIO_PIN_1
-#define CAN_TX_GPIO_Port GPIOD
-#define Wheel_temp_SCL_Pin GPIO_PIN_6
-#define Wheel_temp_SCL_GPIO_Port GPIOB
-#define Wheel_temp_SDA_Pin GPIO_PIN_7
-#define Wheel_temp_SDA_GPIO_Port GPIOB
+/* USER CODE END 1 */
 
-/* USER CODE BEGIN Private defines */
+/** Configure pins as 
+        * Analog 
+        * Input 
+        * Output
+        * EVENT_OUT
+        * EXTI
+*/
+void MX_GPIO_Init(void)
+{
 
-/* USER CODE END Private defines */
+  GPIO_InitTypeDef GPIO_InitStruct;
 
-void _Error_Handler(char *, int);
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
-#define Error_Handler() _Error_Handler(__FILE__, __LINE__)
+  /*Configure GPIO pins : PAPin PAPin */
+  GPIO_InitStruct.Pin = Wheel_speed_Pin|Coolant_flow_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+}
+
+/* USER CODE BEGIN 2 */
+
+/* USER CODE END 2 */
 
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}
-*/ 
+  */
 
-#endif /* __MAIN_H */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
